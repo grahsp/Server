@@ -2,7 +2,7 @@
 
 namespace Server
 {
-    public class Client
+    public class Client : IDisposable
     {
         // Events
         public EventHandler? OnConnect;
@@ -45,9 +45,26 @@ namespace Server
             }
         }
 
+        public void Disconnect()
+        {
+            _client.Close();
+            _client.Dispose();
+            _client = null!;
+            OnDisconnect?.Invoke(this, EventArgs.Empty);
+
+        }
+
         private void SetLastActive()
         {
             LastActive = DateTime.Now.TimeOfDay;
+        }
+
+        public void Dispose()
+        {
+            _cts.Cancel();
+            Disconnect();
+
+            _cts.Dispose();
         }
     }
 }
