@@ -10,18 +10,44 @@ namespace Server
         public EventHandler<string>? OnDataReceived;
 
         public string ID { get; }
-        public DateTime LastActive { get; private set; }
+        public TimeSpan LastActive { get; private set; }
 
-        public NetworkStream Stream;
+        public NetworkStream? Stream;
         public bool IsConnected { get => _client.Connected; }
 
         private TcpClient _client;
         private CancellationTokenSource _cts = new();
 
 
-        public Client(TcpClient client)
+        public Client(string id)
         {
-            _client = client;
+            if (!string.IsNullOrWhiteSpace(id) || id.Length < 4) throw new Exception("Invalid ID");
+
+            ID = id;
+            _client = new TcpClient();
+        }
+
+        public async Task ConnectAsync(string ip, int port) //Add overloads for different types of connections
+        {
+            try
+            {
+                await _client.ConnectAsync(ip, port);
+                if (!_client.Connected) throw new Exception("Failed to connect to the server.");
+                Stream = _client.GetStream();
+                SetLastActive();
+
+                OnConnect?.Invoke(this, EventArgs.Empty);
+            }
+            catch (Exception ex)
+            {
+                _client = null!;
+                throw new InvalidOperationException("Failed to connect to the server.", ex);
+            }
+        }
+
+        private void SetLastActive()
+        {
+            LastActive = DateTime.Now.TimeOfDay;
         }
     }
 }
