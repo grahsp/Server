@@ -21,7 +21,7 @@ namespace Server
 
         public Client(string id)
         {
-            if (!string.IsNullOrWhiteSpace(id) || id.Length < 4) throw new Exception("Invalid ID"); //Add better validation
+            if (string.IsNullOrWhiteSpace(id) || id.Length < 4) throw new Exception("Invalid ID"); //Add better validation
 
             ID = id;
         }
