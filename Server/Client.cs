@@ -32,7 +32,7 @@ namespace Server
             try
             {
                 await _client.ConnectAsync(ip, port);
-                if (!_client.Connected) throw new Exception("Failed to connect to the server.");
+                if (IsConnected) throw new Exception("Failed to connect to the server.");
                 ClientStream = _client.GetStream();
                 SetLastActive();
 
@@ -43,6 +43,17 @@ namespace Server
                 _client = null;
                 throw new InvalidOperationException("Failed to connect to the server.", ex);
             }
+        }
+
+        public async Task SendAsync(string data)
+        {
+            // Placeholder
+            SetLastActive();
+        }
+
+        public async Task ListenAsync(CancellationToken token)
+        {
+            // Placeholder
         }
 
         private void SetLastActive()
