@@ -18,10 +18,13 @@ namespace Server
         private TcpClient? _client;
         private readonly CancellationTokenSource _cts = new();
 
+        //Settings fields
+        private readonly TimeSpan _connectionTimeout = TimeSpan.FromSeconds(10);
 
         public Client(string id)
         {
-            if (string.IsNullOrWhiteSpace(id) || id.Length < 4) throw new Exception("Invalid ID"); //Add better validation
+            if (string.IsNullOrWhiteSpace(id) || id.Length < 4)
+                throw new ArgumentException("ID must not be null, empty, or less than 4 characters.", nameof(id)); //Add better validation
 
             ID = id;
         }
@@ -31,17 +34,25 @@ namespace Server
             _client = new TcpClient();
             try
             {
-                await _client.ConnectAsync(ip, port);
-                if (IsConnected) throw new Exception("Failed to connect to the server.");
+                var connectTask = _client.ConnectAsync(ip, port);
+                // Connect with a timeout
+                if (await Task.WhenAny(connectTask, Task.Delay(_connectionTimeout)) != connectTask)
+                    throw new TimeoutException($"Connection to {ip}:{port} timed out.");
+
                 ClientStream = _client.GetStream();
                 SetLastActive();
 
                 RaiseOnConnect();
             }
+            catch (SocketException ex)
+            {
+                _client = null;
+                throw new InvalidOperationException($"Failed to connect to {ip}:{port}.", ex);
+            }
             catch (Exception ex)
             {
                 _client = null;
-                throw new InvalidOperationException("Failed to connect to the server.", ex);
+                throw new InvalidOperationException("An unexpected error occurred while connecting.", ex);
             }
         }
 
@@ -78,14 +89,25 @@ namespace Server
 
         public void Disconnect()
         {
-            _client?.Close();
-            _client?.Dispose();
-            ClientStream?.Dispose();
+            try
+            {
+                _client?.Close();
+                ClientStream?.Close();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during disconnection: {ex.Message}");
+            }
+            finally
+            {
+                _client?.Dispose();
+                ClientStream?.Dispose();
 
-            _client = null;
-            ClientStream = null;
-            
-            RaiseOnDisconnect();
+                _client = null;
+                ClientStream = null;
+
+                RaiseOnDisconnect();
+            }
         }
 
         public void Dispose()
