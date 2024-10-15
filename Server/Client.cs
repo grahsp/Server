@@ -12,16 +12,16 @@ namespace Server
         public string ID { get; }
         public TimeSpan LastActive { get; private set; }
 
-        public NetworkStream? Stream;
+        public NetworkStream? ClientStream;
         public bool IsConnected { get => _client?.Connected ?? false; }
 
         private TcpClient? _client;
-        private CancellationTokenSource _cts = new();
+        private readonly CancellationTokenSource _cts = new();
 
 
         public Client(string id)
         {
-            if (!string.IsNullOrWhiteSpace(id) || id.Length < 4) throw new Exception("Invalid ID");
+            if (!string.IsNullOrWhiteSpace(id) || id.Length < 4) throw new Exception("Invalid ID"); //Add better validation
 
             ID = id;
         }
@@ -33,7 +33,7 @@ namespace Server
             {
                 await _client.ConnectAsync(ip, port);
                 if (!_client.Connected) throw new Exception("Failed to connect to the server.");
-                Stream = _client.GetStream();
+                ClientStream = _client.GetStream();
                 SetLastActive();
 
                 RaiseOnConnect();
@@ -67,11 +67,13 @@ namespace Server
 
         public void Disconnect()
         {
-            if (_client == null) return;
-            _client.Close();
-            _client.Dispose();
-            _client = null;
+            _client?.Close();
+            _client?.Dispose();
+            ClientStream?.Dispose();
 
+            _client = null;
+            ClientStream = null;
+            
             RaiseOnDisconnect();
         }
 
@@ -81,6 +83,7 @@ namespace Server
             Disconnect();
 
             _cts.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }
