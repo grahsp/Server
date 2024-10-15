@@ -13,9 +13,9 @@ namespace Server
         public TimeSpan LastActive { get; private set; }
 
         public NetworkStream? Stream;
-        public bool IsConnected { get => _client.Connected; }
+        public bool IsConnected { get => _client?.Connected ?? false; }
 
-        private TcpClient _client;
+        private TcpClient? _client;
         private CancellationTokenSource _cts = new();
 
 
@@ -24,11 +24,11 @@ namespace Server
             if (!string.IsNullOrWhiteSpace(id) || id.Length < 4) throw new Exception("Invalid ID");
 
             ID = id;
-            _client = new TcpClient();
         }
 
         public async Task ConnectAsync(string ip, int port) //Add overloads for different types of connections
         {
+            _client = new TcpClient();
             try
             {
                 await _client.ConnectAsync(ip, port);
@@ -36,27 +36,43 @@ namespace Server
                 Stream = _client.GetStream();
                 SetLastActive();
 
-                OnConnect?.Invoke(this, EventArgs.Empty);
+                RaiseOnConnect();
             }
             catch (Exception ex)
             {
-                _client = null!;
+                _client = null;
                 throw new InvalidOperationException("Failed to connect to the server.", ex);
             }
-        }
-
-        public void Disconnect()
-        {
-            _client.Close();
-            _client.Dispose();
-            _client = null!;
-            OnDisconnect?.Invoke(this, EventArgs.Empty);
-
         }
 
         private void SetLastActive()
         {
             LastActive = DateTime.Now.TimeOfDay;
+        }
+
+        private void RaiseOnConnect()
+        {
+            OnConnect?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void RaiseOnDisconnect()
+        {
+            OnDisconnect?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void RaiseOnDataReceived(string data)
+        {
+            OnDataReceived?.Invoke(this, data);
+        }
+
+        public void Disconnect()
+        {
+            if (_client == null) return;
+            _client.Close();
+            _client.Dispose();
+            _client = null;
+
+            RaiseOnDisconnect();
         }
 
         public void Dispose()
