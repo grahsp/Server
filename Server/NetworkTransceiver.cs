@@ -1,7 +1,23 @@
-﻿namespace Server
+﻿using System.Net.Sockets;
+using System.Text;
+
+namespace Server
 {
     internal class NetworkTransceiver
     {
+        #region Sending Data
+        public static async Task SendDataAsync(NetworkStream stream, string message)  //Replace stream with client wrapper
+        {
+            //Null checks and validation..
+
+            byte[] bytes = Encoding.UTF8.GetBytes(message);
+            byte[] lengthBuffer = BitConverter.GetBytes(bytes.Length);
+
+            byte[] data = MergeBuffers(lengthBuffer, bytes);    //Unecessary method?
+
+            await stream.WriteAsync(data);
+        }
+
         private static byte[] MergeBuffers(params byte[][] buffers)
         {
             if (buffers == null)
@@ -21,5 +37,6 @@
 
             return result;
         }
+        #endregion
     }
 }
