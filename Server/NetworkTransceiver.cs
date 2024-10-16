@@ -38,5 +38,20 @@ namespace Server
             return result;
         }
         #endregion
+
+        #region Receive Data
+        private static async Task ReadBytes(NetworkStream stream, byte[] buffer, int messageLength)
+        {
+            int totalBytesRead = 0;
+            while (totalBytesRead < messageLength)
+            {
+                int bytesRead = await stream.ReadAsync(buffer);
+                if (bytesRead <= 0)
+                    throw new Exception("Connection closed before message was fully received.");
+
+                totalBytesRead += bytesRead;
+            }
+        }
+        #endregion
     }
 }
