@@ -2,63 +2,25 @@
 using System.Net.Sockets;
 using System.Text;
 
-namespace Server
+namespace Server.Network
 {
-    public class NetworkStreamWrapper : INetworkStream
-    {
-        private readonly NetworkStream _networkStream;
-
-        public NetworkStreamWrapper(NetworkStream networkStream)
-        {
-            _networkStream = networkStream;
-        }
-
-        public Task WriteAsync(byte[] buffer, CancellationToken cancellationToken = default)
-        {
-            return _networkStream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
-        }
-
-        public Task WriteAsync(byte[] buffer, int offset, int size, CancellationToken cancellationToken = default)
-        {
-            return _networkStream.WriteAsync(buffer, offset, size, cancellationToken);
-        }
-
-        // Implement other methods as needed
-    }
-
     public class NetworkTransceiver
     {
+        private const int MaxPayloadSize = 1048576; // 1MB
+
         #region Sending Data
         public static async Task SendDataAsync(INetworkStream stream, string message, CancellationToken cancellationToken = default)  //Replace stream with client wrapper
         {
-            //Null checks and validation..
+            if (string.IsNullOrEmpty(message))
+                throw new ArgumentNullException(nameof(message), "Message cannot be null or empty.");
 
             byte[] bytes = Encoding.UTF8.GetBytes(message);
-            byte[] lengthBuffer = BitConverter.GetBytes(bytes.Length);
+            ValidatePayloadSize(bytes.Length);
 
+            byte[] lengthBuffer = BitConverter.GetBytes(message.Length);
             byte[] data = MergeBuffers(lengthBuffer, bytes);    //Unecessary method?
 
             await stream.WriteAsync(data, cancellationToken);
-        }
-
-        public static byte[] MergeBuffers(params byte[][] buffers)
-        {
-            if (buffers == null)
-                throw new ArgumentException(nameof(buffers), "buffers cannot be empty!");
-
-            int totalLength = buffers.Sum(buffer => buffer?.Length ?? 0);
-            byte[] result = new byte[totalLength];
-
-            int offset = 0;
-            foreach (var buffer in buffers)
-            {
-                if (buffer == null)
-                    throw new ArgumentException("Atleast one buffer is set to null!", nameof(buffers));
-                Buffer.BlockCopy(buffer, 0, result, offset, buffer.Length);
-                offset += buffer.Length;
-            }
-
-            return result;
         }
         #endregion
 
@@ -69,10 +31,7 @@ namespace Server
             await ReadBytes(stream, lengthHeader);
 
             int dataLength = BitConverter.ToInt32(lengthHeader);
-            if (dataLength < 0 || dataLength > 1048576) // 1MB
-            {
-                throw new InvalidOperationException($"Invalid data length received: {dataLength}.");
-            }
+            ValidatePayloadSize(dataLength);
 
             byte[] dataPayload = new byte[dataLength];
             await ReadBytes(stream, dataPayload);
@@ -107,6 +66,34 @@ namespace Server
 
                 totalBytesRead += bytesRead;
             }
+        }
+        #endregion
+
+        #region Utility
+        public static byte[] MergeBuffers(params byte[][] buffers)
+        {
+            if (buffers == null)
+                throw new ArgumentException(nameof(buffers), "buffers cannot be empty!");
+
+            int totalLength = buffers.Sum(buffer => buffer?.Length ?? 0);
+            byte[] result = new byte[totalLength];
+
+            int offset = 0;
+            foreach (var buffer in buffers)
+            {
+                if (buffer == null)
+                    throw new ArgumentException("Atleast one buffer is set to null!", nameof(buffers));
+                Buffer.BlockCopy(buffer, 0, result, offset, buffer.Length);
+                offset += buffer.Length;
+            }
+
+            return result;
+        }
+
+        private static void ValidatePayloadSize(int dataSize)
+        {
+            if (dataSize < 0 || dataSize > MaxPayloadSize)
+                throw new ArgumentOutOfRangeException(nameof(dataSize), $"Data size must be positive and less than or equal to {MaxPayloadSize} bytes.");
         }
         #endregion
     }
