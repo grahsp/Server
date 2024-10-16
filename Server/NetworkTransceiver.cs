@@ -40,14 +40,30 @@ namespace Server
         #endregion
 
         #region Receive Data
-        private static async Task ReadBytes(NetworkStream stream, byte[] buffer, int messageLength)
+        private static async Task ReadBytes(NetworkStream stream, byte[] dataBuffer)
         {
+            await ReadBytes(stream, dataBuffer, dataBuffer.Length);
+        }
+
+        private static async Task ReadBytes(NetworkStream stream, byte[] dataBuffer, int expectedMessageLength, CancellationToken cancellationToken = default)
+        {
+            if (stream == null)
+                throw new ArgumentNullException(nameof(stream), "Network stream cannot be null.");
+
+            if (dataBuffer == null)
+                throw new ArgumentNullException(nameof(dataBuffer), "Buffer cannot be null.");
+
+            if (expectedMessageLength <= 0 || expectedMessageLength > dataBuffer.Length)
+                throw new ArgumentOutOfRangeException(nameof(expectedMessageLength), "Message length must be positive and less than or equal to buffer size.");
+
+
             int totalBytesRead = 0;
-            while (totalBytesRead < messageLength)
+            while (totalBytesRead < expectedMessageLength)
             {
-                int bytesRead = await stream.ReadAsync(buffer);
+                // Read data into the buffer from the current offset
+                int bytesRead = await stream.ReadAsync(dataBuffer);
                 if (bytesRead <= 0)
-                    throw new Exception("Connection closed before message was fully received.");
+                    throw new IOException("Connection closed before message was fully received.");
 
                 totalBytesRead += bytesRead;
             }
