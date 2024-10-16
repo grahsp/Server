@@ -16,12 +16,5 @@ namespace Server.Network
         {
             return _networkStream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
         }
-
-        public Task WriteAsync(byte[] buffer, int offset, int size, CancellationToken cancellationToken = default)
-        {
-            return _networkStream.WriteAsync(buffer, offset, size, cancellationToken);
-        }
-
-        // Implement other methods as needed
     }
 }
