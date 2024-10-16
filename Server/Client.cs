@@ -8,6 +8,7 @@ namespace Server
         public EventHandler? OnConnect;
         public EventHandler? OnDisconnect;
         public EventHandler<string>? OnDataReceived;
+        public EventHandler? OnDataSent;
 
         public string ID { get; }
         public TimeSpan LastActive { get; private set; }
@@ -18,7 +19,7 @@ namespace Server
         private TcpClient? _client;
         private readonly CancellationTokenSource _cts = new();
 
-        //Settings fields
+        // Settings fields
         private readonly TimeSpan _connectionTimeout = TimeSpan.FromSeconds(10);
 
         public Client(string id)
@@ -29,7 +30,7 @@ namespace Server
             ID = id;
         }
 
-        public async Task ConnectAsync(string ip, int port) //Add overloads for different types of connections
+        public async Task ConnectAsync(string ip, int port) // Add overloads for different types of connections
         {
             _client = new TcpClient();
             try
@@ -58,13 +59,43 @@ namespace Server
 
         public async Task SendAsync(string data)
         {
-            // Placeholder
-            SetLastActive();
+            if (!IsConnected) throw new InvalidOperationException("TcpClient is not connected!");
+            if (ClientStream == null) throw new InvalidOperationException("Client stream is not initialized!");
+
+            try
+            {
+                await NetworkTransceiver.SendDataAsync(ClientStream, data);
+                SetLastActive();
+
+                RaiseOnDataSent();
+            }
+            catch(Exception ex)
+            {
+                Disconnect();
+                throw new InvalidOperationException("Failed to send data to the client.", ex);
+            }
         }
 
         public async Task ListenAsync(CancellationToken token)
         {
-            // Placeholder
+            if (!IsConnected) throw new InvalidOperationException("TcpClient is not connected!");
+            if (ClientStream == null) throw new InvalidOperationException("Client stream is not initialized!");
+
+            try
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    var data = await NetworkTransceiver.ReceiveDataAsync(ClientStream);
+                    if (string.IsNullOrEmpty(data)) continue;
+
+                    OnDataReceived?.Invoke(this, data);
+                    await Task.Delay(50); // Add a delay to prevent high CPU usage
+                }
+            }
+            catch (Exception)
+            {
+                Disconnect();
+            }
         }
 
         private void SetLastActive()
@@ -85,6 +116,11 @@ namespace Server
         private void RaiseOnDataReceived(string data)
         {
             OnDataReceived?.Invoke(this, data);
+        }
+
+        private void RaiseOnDataSent()
+        {
+            OnDataSent?.Invoke(this, EventArgs.Empty);
         }
 
         public void Disconnect()
@@ -114,9 +150,9 @@ namespace Server
         {
             _cts.Cancel();
             Disconnect();
-
             _cts.Dispose();
             GC.SuppressFinalize(this);
         }
+    }
     }
 }
