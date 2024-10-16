@@ -38,7 +38,7 @@ namespace NetworkTransceiver.Tests
         }
 
         [TestMethod]
-        public async Task SendDataAsync_HandlesLargeData_Successfully()
+        public async Task SendDataAsync_HandleLargeData_Successfully()
         {
             // Arrange
             var mockStream = new Mock<INetworkStream>();
@@ -49,7 +49,6 @@ namespace NetworkTransceiver.Tests
             var messageLength = messageBytes.Length;
             var lengthHeader = BitConverter.GetBytes(messageLength);
 
-            Console.WriteLine(messageLength);
             var expectedData = Transceiver.MergeBuffers(lengthHeader, messageBytes);
             var cancellationToken = new CancellationToken();
 
@@ -65,6 +64,39 @@ namespace NetworkTransceiver.Tests
                 It.Is<byte[]>(buffer => buffer.SequenceEqual(expectedData)),
                 It.IsAny<CancellationToken>()),
                 Times.Once);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentNullException))]
+        public async Task SendDataAsync_EmptyMessage_ThrowArgumentNullException()
+        {
+            // Arrange
+            var mockStream = new Mock<INetworkStream>();
+
+            var message = string.Empty;
+            var cancellationToken = new CancellationToken();
+
+            // Act
+            await Transceiver.SendDataAsync(mockStream.Object, message, cancellationToken);
+
+            // Assert is handled by ExpectedException
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public async Task SendDataAsync_HandleTooLargeData_ThrowArgumentOutOfRangeException()
+        {
+            // Arrange
+            var mockStream = new Mock<INetworkStream>();
+
+            var message = new string('a', 1048577); // 1MB + 1B
+
+            var cancellationToken = new CancellationToken();
+
+            // Act
+            await Transceiver.SendDataAsync(mockStream.Object, message, cancellationToken);
+
+            // Assert is handled by ExpectedException
         }
     }
 }
