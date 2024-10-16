@@ -154,5 +154,4 @@ namespace Server
             GC.SuppressFinalize(this);
         }
     }
-    }
 }
