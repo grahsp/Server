@@ -1,12 +1,35 @@
-﻿using System.Net.Sockets;
+﻿using Server.Interfaces;
+using System.Net.Sockets;
 using System.Text;
 
 namespace Server
 {
-    internal class NetworkTransceiver
+    public class NetworkStreamWrapper : INetworkStream
+    {
+        private readonly NetworkStream _networkStream;
+
+        public NetworkStreamWrapper(NetworkStream networkStream)
+        {
+            _networkStream = networkStream;
+        }
+
+        public Task WriteAsync(byte[] buffer, CancellationToken cancellationToken = default)
+        {
+            return _networkStream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
+        }
+
+        public Task WriteAsync(byte[] buffer, int offset, int size, CancellationToken cancellationToken = default)
+        {
+            return _networkStream.WriteAsync(buffer, offset, size, cancellationToken);
+        }
+
+        // Implement other methods as needed
+    }
+
+    public class NetworkTransceiver
     {
         #region Sending Data
-        public static async Task SendDataAsync(NetworkStream stream, string message)  //Replace stream with client wrapper
+        public static async Task SendDataAsync(INetworkStream stream, string message, CancellationToken cancellationToken = default)  //Replace stream with client wrapper
         {
             //Null checks and validation..
 
@@ -15,10 +38,10 @@ namespace Server
 
             byte[] data = MergeBuffers(lengthBuffer, bytes);    //Unecessary method?
 
-            await stream.WriteAsync(data);
+            await stream.WriteAsync(data, cancellationToken);
         }
 
-        private static byte[] MergeBuffers(params byte[][] buffers)
+        public static byte[] MergeBuffers(params byte[][] buffers)
         {
             if (buffers == null)
                 throw new ArgumentException(nameof(buffers), "buffers cannot be empty!");
