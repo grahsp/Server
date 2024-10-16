@@ -40,6 +40,23 @@ namespace Server
         #endregion
 
         #region Receive Data
+        public static async Task<string> ReceiveDataAsync(NetworkStream stream)
+        {
+            byte[] lengthHeader = new byte[4];
+            await ReadBytes(stream, lengthHeader);
+
+            int dataLength = BitConverter.ToInt32(lengthHeader);
+            if (dataLength < 0 || dataLength > 1048576) // 1MB
+            {
+                throw new InvalidOperationException($"Invalid data length received: {dataLength}.");
+            }
+
+            byte[] dataPayload = new byte[dataLength];
+            await ReadBytes(stream, dataPayload);
+
+            return Encoding.UTF8.GetString(dataPayload);
+        }
+
         private static async Task ReadBytes(NetworkStream stream, byte[] dataBuffer)
         {
             await ReadBytes(stream, dataBuffer, dataBuffer.Length);
