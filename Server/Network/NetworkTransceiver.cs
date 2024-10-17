@@ -34,7 +34,7 @@ namespace Server.Network
         #endregion
 
         #region Receive Data
-        public static async Task<string> ReceiveDataAsync(NetworkStream stream)
+        public static async Task<string> ReceiveDataAsync(INetworkStream stream)
         {
             byte[] lengthHeader = new byte[4];
             await ReadBytes(stream, lengthHeader);
@@ -48,20 +48,20 @@ namespace Server.Network
             return Encoding.UTF8.GetString(dataPayload);
         }
 
-        private static async Task ReadBytes(NetworkStream stream, byte[] dataBuffer)
+        private static async Task ReadBytes(INetworkStream stream, byte[] buffer, CancellationToken cancellationToken = default)
         {
-            await ReadBytes(stream, dataBuffer, dataBuffer.Length);
+            await ReadBytes(stream, buffer, buffer.Length, cancellationToken);
         }
 
-        private static async Task ReadBytes(NetworkStream stream, byte[] dataBuffer, int expectedMessageLength, CancellationToken cancellationToken = default)
+        private static async Task ReadBytes(INetworkStream stream, byte[] buffer, int expectedMessageLength, CancellationToken cancellationToken = default)
         {
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream), "Network stream cannot be null.");
 
-            if (dataBuffer == null)
-                throw new ArgumentNullException(nameof(dataBuffer), "Buffer cannot be null.");
+            if (buffer == null)
+                throw new ArgumentNullException(nameof(buffer), "Buffer cannot be null.");
 
-            if (expectedMessageLength <= 0 || expectedMessageLength > dataBuffer.Length)
+            if (expectedMessageLength <= 0 || expectedMessageLength > buffer.Length)
                 throw new ArgumentOutOfRangeException(nameof(expectedMessageLength), "Message length must be positive and less than or equal to buffer size.");
 
 
@@ -69,7 +69,7 @@ namespace Server.Network
             while (totalBytesRead < expectedMessageLength)
             {
                 // Read data into the buffer from the current offset
-                int bytesRead = await stream.ReadAsync(dataBuffer);
+                int bytesRead = await stream.ReadAsync(buffer);
                 if (bytesRead <= 0)
                     throw new IOException("Connection closed before message was fully received.");
 
