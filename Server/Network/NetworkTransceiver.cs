@@ -59,7 +59,7 @@ namespace Server.Network
             while (totalBytesRead < expectedMessageLength)
             {
                 // Read data into the buffer from the current offset
-                int bytesRead = await stream.ReadAsync(buffer, cancellationToken);
+                int bytesRead = await stream.ReadAsync(buffer.AsMemory(totalBytesRead, expectedMessageLength - totalBytesRead), cancellationToken);
                 if (bytesRead <= 0)
                     throw new IOException("Connection closed unexpectedly.");
 
@@ -94,7 +94,7 @@ namespace Server.Network
         private static void ValidatePayloadSize(int dataSize)
         {
             if (dataSize <= 0 || dataSize > MaxPayloadSize)
-                throw new ArgumentOutOfRangeException(nameof(dataSize), $"Data size must be positive and less than or equal to {MaxPayloadSize} bytes.");
+                throw new InvalidOperationException($"Payload size must be positive and less than or equal to {MaxPayloadSize} bytes.");
         }
         #endregion
     }

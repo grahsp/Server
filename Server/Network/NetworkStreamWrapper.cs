@@ -17,7 +17,7 @@ namespace Server.Network
             await _networkStream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
         }
 
-        public async Task<int> ReadAsync(byte[] buffer, CancellationToken cancellationToken = default)
+        public async Task<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
             return await _networkStream.ReadAsync(buffer, cancellationToken);
         }
