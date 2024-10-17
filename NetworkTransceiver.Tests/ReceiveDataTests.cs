@@ -33,5 +33,65 @@ namespace NetworkTransceiver.Tests
             // Assert
             Assert.AreEqual(message, result);
         }
+
+        // ADD TEST FOR EMPTY MESSAGE THAT SHOULD THROW EXCEPTION AND DISCONNECT CLIENT
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public async Task ReceiveDataAsync_InvalidLengthHeader_ThrowsArgumentOutOfRangeException()
+        {
+            // Arrange
+            var mockStream = new Mock<INetworkStream>();
+            var lengthBytes = BitConverter.GetBytes(-1);
+
+            mockStream.Setup(s => s.ReadAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+                      .ReturnsAsync((byte[] buffer, CancellationToken ct) =>
+                      {
+                          Array.Copy(lengthBytes, 0, buffer, 0, lengthBytes.Length);
+                          return lengthBytes.Length;
+                      });
+
+            // Act
+            await Transceiver.ReceiveDataAsync(mockStream.Object);
+
+            // Assert is handled by ExpectedException
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(IOException))]
+        public async Task ReceiveDataAsync_StreamClosedBeforeFullRead_ThrowsIOException()
+        {
+            // Arrange
+            var mockStream = new Mock<INetworkStream>();
+            var lengthBytes = BitConverter.GetBytes(4);
+            var partialMessageBytes = new byte[] { 1, 2 };
+
+            var callCount = 0;
+            mockStream.Setup(s => s.ReadAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+                      .Returns((byte[] buffer, CancellationToken ct) =>
+                      {
+                          if (callCount == 0)
+                          {
+                              Array.Copy(lengthBytes, 0, buffer, 0, lengthBytes.Length);
+                              callCount++;
+                              return Task.FromResult(lengthBytes.Length);
+                          }
+                          else if (callCount == 1)
+                          {
+                              Array.Copy(partialMessageBytes, 0, buffer, 0, partialMessageBytes.Length);
+                              callCount++;
+                              return Task.FromResult(partialMessageBytes.Length);
+                          }
+                          else
+                          {
+                              return Task.FromResult(0); // Simulate stream closed
+                          }
+                      });
+
+            // Act
+            await Transceiver.ReceiveDataAsync(mockStream.Object);
+
+            // Assert is handled by ExpectedException
+        }
     }
 }
