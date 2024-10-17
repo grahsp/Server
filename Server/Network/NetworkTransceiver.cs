@@ -34,47 +34,39 @@ namespace Server.Network
         #endregion
 
         #region Receive Data
-        public static async Task<string> ReceiveDataAsync(INetworkStream stream)
+        public static async Task<string> ReceiveDataAsync(INetworkStream stream, CancellationToken cancellationToken = default)
         {
-            byte[] lengthHeader = new byte[4];
-            await ReadBytes(stream, lengthHeader);
+            byte[] lengthHeader = await ReadBytes(stream, 4, cancellationToken);
 
             int dataLength = BitConverter.ToInt32(lengthHeader);
             ValidatePayloadSize(dataLength);
 
-            byte[] dataPayload = new byte[dataLength];
-            await ReadBytes(stream, dataPayload);
+            byte[] dataPayload = await ReadBytes(stream, dataLength, cancellationToken);
 
             return Encoding.UTF8.GetString(dataPayload);
         }
 
-        private static async Task ReadBytes(INetworkStream stream, byte[] buffer, CancellationToken cancellationToken = default)
-        {
-            await ReadBytes(stream, buffer, buffer.Length, cancellationToken);
-        }
-
-        private static async Task ReadBytes(INetworkStream stream, byte[] buffer, int expectedMessageLength, CancellationToken cancellationToken = default)
+        private static async Task<byte[]> ReadBytes(INetworkStream stream, int expectedMessageLength, CancellationToken cancellationToken = default)
         {
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream), "Network stream cannot be null.");
 
-            if (buffer == null)
-                throw new ArgumentNullException(nameof(buffer), "Buffer cannot be null.");
+            if (expectedMessageLength <= 0)
+                return [];
 
-            if (expectedMessageLength <= 0 || expectedMessageLength > buffer.Length)
-                throw new ArgumentOutOfRangeException(nameof(expectedMessageLength), "Message length must be positive and less than or equal to buffer size.");
-
-
+            byte[] buffer = new byte[expectedMessageLength];
             int totalBytesRead = 0;
             while (totalBytesRead < expectedMessageLength)
             {
                 // Read data into the buffer from the current offset
-                int bytesRead = await stream.ReadAsync(buffer);
+                int bytesRead = await stream.ReadAsync(buffer, cancellationToken);
                 if (bytesRead <= 0)
-                    throw new IOException("Connection closed before message was fully received.");
+                    throw new IOException("Connection closed unexpectedly.");
 
                 totalBytesRead += bytesRead;
             }
+
+            return buffer;
         }
         #endregion
 
@@ -101,7 +93,7 @@ namespace Server.Network
 
         private static void ValidatePayloadSize(int dataSize)
         {
-            if (dataSize < 0 || dataSize > MaxPayloadSize)
+            if (dataSize <= 0 || dataSize > MaxPayloadSize)
                 throw new ArgumentOutOfRangeException(nameof(dataSize), $"Data size must be positive and less than or equal to {MaxPayloadSize} bytes.");
         }
         #endregion
