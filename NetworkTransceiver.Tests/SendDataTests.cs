@@ -185,28 +185,24 @@ namespace NetworkTransceiver.Tests
                 Transceiver.SendDataAsync(mockStream.Object, message, cancellationToken));
         }
 
-        [TestClass]
-        public class NetworkTransceiverTests
+        [TestMethod]
+        public async Task SendDataAsync_WriteTimeout_ThrowsTimeoutException()
         {
-            [TestMethod]
-            public async Task SendDataAsync_WriteTimeout_ThrowsTimeoutException()
-            {
-                // Arrange
-                var mockStream = new Mock<INetworkStream>();
-                var message = "Hello, World!";
-                var cancellationToken = new CancellationToken();
+            // Arrange
+            var mockStream = new Mock<INetworkStream>();
+            var message = "Hello, World!";
+            var cancellationToken = new CancellationToken();
 
-                // Setup the WriteAsync method to delay indefinitely
-                mockStream.Setup(s => s.WriteAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
-                          .Returns(async (byte[] buffer, CancellationToken ct) =>
-                          {
-                              await Task.Delay(Timeout.Infinite, ct);
-                          });
+            // Setup the WriteAsync method to delay indefinitely
+            mockStream.Setup(s => s.WriteAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+                        .Returns(async (byte[] buffer, CancellationToken ct) =>
+                        {
+                            await Task.Delay(Timeout.Infinite, ct);
+                        });
 
-                // Act & Assert
-                await Assert.ThrowsExceptionAsync<TimeoutException>(() =>
-                    Transceiver.SendDataAsync(mockStream.Object, message, cancellationToken));
-            }
+            // Act & Assert
+            await Assert.ThrowsExceptionAsync<TimeoutException>(() =>
+                Transceiver.SendDataAsync(mockStream.Object, message, cancellationToken));
         }
     }
 }
