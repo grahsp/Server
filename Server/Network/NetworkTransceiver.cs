@@ -1,12 +1,14 @@
 ﻿using Server.Interfaces;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 
 namespace Server.Network
 {
     public class NetworkTransceiver
     {
         private const int MaxPayloadSize = 1048576; // 1MB
+        private static TimeSpan timeout = TimeSpan.FromSeconds(5);
 
         #region Sending Data
         public static async Task SendDataAsync(INetworkStream stream, string message, CancellationToken cancellationToken = default)  //Replace stream with client wrapper
@@ -20,7 +22,14 @@ namespace Server.Network
             byte[] lengthBuffer = BitConverter.GetBytes(message.Length);
             byte[] data = MergeBuffers(lengthBuffer, bytes);    //Unecessary method?
 
-            await stream.WriteAsync(data, cancellationToken);
+            // Create a race condition between the write operation and the timeout
+            var writeTask = stream.WriteAsync(data, cancellationToken);
+            var timeoutTask = Task.Delay(timeout);
+
+            if (await Task.WhenAny(writeTask, timeoutTask) == timeoutTask)
+                throw new TimeoutException("The send operation timed out.");
+
+            await writeTask;
         }
         #endregion
 
