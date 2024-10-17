@@ -12,9 +12,14 @@ namespace Server.Network
             _networkStream = networkStream;
         }
 
-        public Task WriteAsync(byte[] buffer, CancellationToken cancellationToken = default)
+        public async Task WriteAsync(byte[] buffer, CancellationToken cancellationToken = default)
         {
-            return _networkStream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
+            await _networkStream.WriteAsync(buffer, 0, buffer.Length, cancellationToken);
+        }
+
+        public async Task<int> ReadAsync(byte[] buffer, CancellationToken cancellationToken = default)
+        {
+            return await _networkStream.ReadAsync(buffer, cancellationToken);
         }
     }
 }
