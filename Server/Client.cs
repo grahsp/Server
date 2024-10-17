@@ -1,4 +1,6 @@
-﻿using System.Net.Sockets;
+﻿using Server.Interfaces;
+using Server.Network;
+using System.Net.Sockets;
 
 namespace Server
 {
@@ -13,7 +15,7 @@ namespace Server
         public string ID { get; }
         public TimeSpan LastActive { get; private set; }
 
-        public NetworkStream? ClientStream;
+        public INetworkStream? ClientStream;
         public bool IsConnected { get => _client?.Connected ?? false; }
 
         private TcpClient? _client;
@@ -40,7 +42,8 @@ namespace Server
                 if (await Task.WhenAny(connectTask, Task.Delay(_connectionTimeout)) != connectTask)
                     throw new TimeoutException($"Connection to {ip}:{port} timed out.");
 
-                ClientStream = _client.GetStream();
+                var stream = _client.GetStream();
+                ClientStream = new NetworkStreamWrapper(stream);
                 SetLastActive();
 
                 RaiseOnConnect();

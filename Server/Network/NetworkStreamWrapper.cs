@@ -21,5 +21,15 @@ namespace Server.Network
         {
             return await _networkStream.ReadAsync(buffer, cancellationToken);
         }
+
+        public void Close()
+        {
+            _networkStream.Close();
+        }
+
+        public void Dispose()
+        {
+            _networkStream.Dispose();
+        }
     }
 }
